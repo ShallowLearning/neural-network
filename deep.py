@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
+import sys
+
 import numpy as np
 
 import theano
@@ -12,7 +14,8 @@ from lasagne.updates import sgd, momentum, nesterov_momentum, adagrad, rmsprop, 
     adadelta, adam
 from lasagne.nonlinearities import softmax
 
-theano.config.blas.idflags = '-lblas -lgfortran'
+# for pickle...
+sys.setrecursionlimit(10000)
 
 def float32(k):
     """ helper function to make theano happy (numbers need to be float32) """
@@ -80,15 +83,15 @@ class BaseSchedule(object):
             self.schedule = self.determine_schedule(nn.max_epochs)
 
         # update the parameters
-        new_value = float32(next(self.schedule))
+        epoch = train_history[-1]['epoch']
+        new_value = float32(self.schedule[epoch-1])
         getattr(nn, self.name).set_value(new_value)
 
 
 class ConstantSchedule(BaseSchedule):
     """ Simply return the same value """
     def determine_schedule(self, max_epochs):
-        for epoch in range(max_epochs):
-            yield self.start
+        return np.repeat(self.start, max_epochs)
 
 
 class LinearSchedule(BaseSchedule):
@@ -103,10 +106,8 @@ class LinearSchedule(BaseSchedule):
     def determine_schedule(self, max_epochs):
         if self.delta is None:
             self.delta = (self.stop - self.start) / max_epochs
-        
-        for epoch in range(max_epochs):
-            self.value += self.delta
-            yield self.value
+
+        return np.repeat(self.value, max_epochs) + np.arange(max_epochs)*self.delta
 
 
 class ExponentialSchedule(BaseSchedule):
@@ -118,9 +119,7 @@ class ExponentialSchedule(BaseSchedule):
 
 
     def determine_schedule(self, max_epochs):
-        for epoch in range(max_epochs):
-            self.value *= self.factor
-            yield self.value
+        return np.repeat(self.value, max_epochs) * np.arange(max_epochs)*self.factor
         
 
 # Early stopping heuristics
@@ -219,15 +218,18 @@ class NetworkGenerator(object):
         pass
 
 
-    def __iter__(self):
+    def __call__(self):
         n_layers = len(self.shape)
+        structure = []
         for layer, n_units in enumerate(self.shape):
             if layer == 0:
-                yield self.input_layer(n_units)
+                structure.append(self.input_layer(n_units))
             elif layer == n_layers-1:
-                yield self.output_layer(n_units)
+                structure.append(self.output_layer(n_units))
             else:
-                yield self.hidden_layer(n_units)
+                structure.append(self.hidden_layer(n_units))
+        
+        return structure
 
 
 class DropoutNetworkGenerator(NetworkGenerator):
@@ -261,8 +263,7 @@ class DropoutNetworkGenerator(NetworkGenerator):
 
 def flatten(lst):
     """ Generator to unravel the network generator.
-        It's generators all the way down, but needs to be extended if adding more 
-        obscure architectures.
+        Should be made more general for more obscure architectures.
     """
     for l in lst:
         if isinstance(l, list):
@@ -308,7 +309,7 @@ class BaseNet(object):
 
     def structure(self):
         net_generator = self._get_network_generator()
-        layers = list(flatten(net_generator))
+        layers = list(flatten(net_generator()))
         return layers
 
 
@@ -325,7 +326,6 @@ class BaseNet(object):
                             stop=0.0001),
                         early_stopping
                       ],
-                      on_training_finished=[early_stopping.load_best_weights],
                       eval_size=0.2,
                       max_epochs=self.max_epoch,
                       verbose=1,
