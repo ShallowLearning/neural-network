@@ -310,7 +310,7 @@ class BaseNet(object):
         self.momentum = momentum
         self.activation = activation
         self.output_nonlinearity = output_nonlinearity
-
+        self.shape = None
     
     @property
     @abstractmethod
@@ -359,8 +359,9 @@ class BaseNet(object):
         n_output = len(np.unique(y))
 
         # determine network structure
-        self.shape = [(None, n_feats)] + \
-            [self.n_hidden_units for _ in range(self.n_hidden_layers)] + [n_output]
+        if self.shape is None:
+            self.shape = [(None, n_feats)] + \
+                [self.n_hidden_units for _ in range(self.n_hidden_layers)] + [n_output]
         self.arch = self.structure()
         self.model = self.build_network()
 
@@ -376,6 +377,12 @@ class BaseNet(object):
         return self.model.predict(X)
 
 
+    def predict_proba(self, X):
+        if self.model is None:
+            raise RuntimeError('The model must be fit first')
+        return self.model.predict_proba(X)
+
+
 # Define your networks here
 #---------------------------------------------------------------------------------------
 class VanillaNet(BaseNet):
@@ -385,7 +392,7 @@ class VanillaNet(BaseNet):
     def network_parameters(self):
         if self.network_params is None:
             self.network_params = {
-                'shape': self.shape, 
+               'shape': self.shape, 
                'dropout_p': self.dropout_p,
                'activation': NONLINEARITIES[self.activation],
                'output_nonlinearity': NONLINEARITIES[self.output_nonlinearity]
