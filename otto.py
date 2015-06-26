@@ -38,9 +38,9 @@ def generate_data():
 if __name__ == '__main__':
     X, y, shape = generate_data()
     net = VanillaNet(n_hidden_layers=2,
-                     n_hidden_units=1000,
-                     max_epoch=200,
-                     corruption=0.5,
+                     n_hidden_units=500,
+                     max_epoch=2,
+                     dropout_p=0.5,
                      update=UpdateType.Adagrad,
                      learning_rate=0.04)
     net.fit(X, y)
