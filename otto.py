@@ -7,7 +7,12 @@ import theano.tensor as T
 import pandas as pd
 import numpy as np
 
-from deep import VanillaNet, float32, UpdateType
+from deep import VanillaNet, float32, UpdateType, NonLinearityType
+
+import cPickle as pickle
+import sys
+
+sys.setrecursionlimit(10000)
 
 def generate_data():
     """ process datafile for Lasagne """
@@ -39,9 +44,10 @@ if __name__ == '__main__':
     X, y, shape = generate_data()
     net = VanillaNet(n_hidden_layers=2,
                      n_hidden_units=500,
-                     max_epoch=2,
+                     max_epoch=100,
                      dropout_p=0.5,
                      update=UpdateType.Adagrad,
+                     activation=NonLinearityType.LeakyRectify,
                      learning_rate=0.04)
     net.fit(X, y)
-
+    pickle.dump(net, open('net.pickle', 'w', -1))

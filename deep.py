@@ -1,7 +1,5 @@
 from abc import ABCMeta, abstractmethod
 
-import sys
-
 import numpy as np
 
 import theano
@@ -12,10 +10,8 @@ from nolearn.lasagne import NeuralNet
 from lasagne.layers import DenseLayer, InputLayer, DropoutLayer
 from lasagne.updates import sgd, momentum, nesterov_momentum, adagrad, rmsprop, \
     adadelta, adam
-from lasagne.nonlinearities import softmax
-
-# for pickle...
-sys.setrecursionlimit(10000)
+from lasagne.nonlinearities import softmax, sigmoid, tanh, rectify, \
+    leaky_rectify, very_leaky_rectify, linear, identity
 
 def float32(k):
     """ helper function to make theano happy (numbers need to be float32) """
@@ -26,11 +22,23 @@ def float32(k):
 #---------------------------------------------------------------------------------------
 class NonLinearityType(object):
     """ Enum for nonlinearities """
-    Softmax = 1
+    Sigmoid = 1
+    Softmax = 2
+    Tanh = 3
+    Rectify = 4
+    LeakyRectify = 5
+    VeryLeakyRectify = 6
+    Linear = 7
 
 
 NONLINEARITIES = {
+                    NonLinearityType.Sigmoid : sigmoid,
                     NonLinearityType.Softmax : softmax,
+                    NonLinearityType.Tanh : tanh,
+                    NonLinearityType.Rectify : rectify,
+                    NonLinearityType.LeakyRectify : leaky_rectify, # alpha = 0.01
+                    NonLinearityType.VeryLeakyRectify : very_leaky_rectify, # alpha = 1/3
+                    NonLinearityType.Linear : linear
 }
 
 
@@ -237,10 +245,11 @@ class DropoutNetworkGenerator(NetworkGenerator):
     """
     Simple deep network with dropout
     """
-    def __init__(self, shape, dropout_p=0.5, nonlinearity=None):
+    def __init__(self, shape, dropout_p=0.5, activation=rectify, output_nonlinearity=None):
         self.shape = shape
         self.dropout_p = dropout_p
-        self.nonlinearity = nonlinearity
+        self.output_nonlinearity = output_nonlinearity
+        self.activation = activation
 
 
     def input_layer(self, n_units):
@@ -249,17 +258,20 @@ class DropoutNetworkGenerator(NetworkGenerator):
 
     def hidden_layer(self, n_units):
         if self.dropout_p is None:
-            return (DenseLayer, {'num_units': n_units})
+            return (DenseLayer, {'num_units': n_units, 'nonlinearity': self.activation})
         
         if self.dropout_p < 0 or self.dropout_p > 1:
             raise ValueError("Dropout probability  must lie in the interval [0,1].")
         else:
-            return [(DenseLayer, {'num_units': n_units}), \
-                (DropoutLayer, {'p': self.dropout_p})]
+            return [
+                (DenseLayer, {'num_units': n_units, 'nonlinearity': self.activation}), \
+                (DropoutLayer, {'p': self.dropout_p})
+                ]
 
 
     def output_layer(self, n_units):
-        return (DenseLayer, {'num_units' : n_units,  'nonlinearity': self.nonlinearity})
+        return (DenseLayer, {'num_units' : n_units, \
+            'nonlinearity': self.output_nonlinearity})
 
 
 def flatten(lst):
@@ -284,7 +296,8 @@ class BaseNet(object):
     
     def __init__(self, n_hidden_layers=3, n_hidden_units=100, max_epoch=100, 
         dropout_p=None, stop_window=15, patience=10, update=UpdateType.Nesterov,
-        learning_rate=0.01, momentum=0.9, nonlinearity=NonLinearityType.Softmax):
+        learning_rate=0.01, momentum=0.9, output_nonlinearity=NonLinearityType.Softmax,
+        activation=NonLinearityType.Rectify):
 
         self.n_hidden_layers = n_hidden_layers
         self.n_hidden_units = n_hidden_units
@@ -295,7 +308,8 @@ class BaseNet(object):
         self.update = update
         self.learning_rate = learning_rate
         self.momentum = momentum
-        self.nonlinearity = nonlinearity
+        self.activation = activation
+        self.output_nonlinearity = output_nonlinearity
 
     
     @property
@@ -370,7 +384,10 @@ class VanillaNet(BaseNet):
     @property
     def network_parameters(self):
         if self.network_params is None:
-            self.network_params = {'shape': self.shape, 
-                                   'dropout_p': self.dropout_p,
-                                   'nonlinearity': NONLINEARITIES[self.nonlinearity]}
+            self.network_params = {
+                'shape': self.shape, 
+               'dropout_p': self.dropout_p,
+               'activation': NONLINEARITIES[self.activation],
+               'output_nonlinearity': NONLINEARITIES[self.output_nonlinearity]
+        }
         return self.network_params 
