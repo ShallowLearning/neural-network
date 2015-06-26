@@ -195,7 +195,8 @@ class EarlyStoppingWindow(object):
 #---------------------------------------------------------------------------------------
 class NetworkGenerator(object):
     """
-    Abstract method to generate the structure of a neural network
+    Abstract method to generate the structure of a neural network.
+    Could be more general (assumes all same hidden layers, not a great assumption)
     """
     __metaclass__ = ABCMeta
 
@@ -262,7 +263,7 @@ class DropoutNetworkGenerator(NetworkGenerator):
 
 
 def flatten(lst):
-    """ Generator to unravel the network generator.
+    """ Generator to unravel the network structure.
         Should be made more general for more obscure architectures.
     """
     for l in lst:
