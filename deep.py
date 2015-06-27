@@ -127,7 +127,11 @@ class ExponentialSchedule(BaseSchedule):
 
 
     def determine_schedule(self, max_epochs):
-        return np.repeat(self.value, max_epochs) * np.arange(max_epochs)*self.factor
+        if np.abs(self.factor) > 1 or np.abs(self.factor) < 0:
+            raise ValueError('Exponential schedule only excepts growth factors with \
+            magnitudes in the range [0,1]')
+        return np.repeat(self.value, max_epochs) * \
+            np.power(self.factor, np.arange(max_epochs))
         
 
 # Early stopping heuristics
@@ -212,7 +216,7 @@ class ShufflingBatchIteratorMixin(object):
         for res in super(ShufflingBatchIteratorMixin, self).__iter__():
             yield res
 
-class ShuffledBatchIterator(BatchIterator, ShufflingBatchIteratorMixin):
+class ShuffleBatchIterator(BatchIterator, ShufflingBatchIteratorMixin):
     pass
 
 # Network Architecture Generators
@@ -386,7 +390,7 @@ class BaseNet(object):
 
         return self
 
-
+    
     def predict(self, X):
         if self.model is None:
             raise RuntimeError('The model must be fit first')
