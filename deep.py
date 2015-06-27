@@ -216,7 +216,7 @@ class ShufflingBatchIteratorMixin(object):
         for res in super(ShufflingBatchIteratorMixin, self).__iter__():
             yield res
 
-class ShuffleBatchIterator(BatchIterator, ShufflingBatchIteratorMixin):
+class ShuffleBatchIterator(ShufflingBatchIteratorMixin, BatchIterator):
     pass
 
 # Network Architecture Generators
@@ -361,6 +361,7 @@ class BaseNet(object):
                             stop=0.0001),
                         early_stopping
                       ],
+                      batch_iterator_train=ShuffleBatchIterator(batch_size=128),
                       eval_size=0.2,
                       max_epochs=self.max_epoch,
                       verbose=1,
