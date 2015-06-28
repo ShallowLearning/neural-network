@@ -317,7 +317,7 @@ class BaseNet(object):
     def __init__(self, n_hidden_layers=3, n_hidden_units=100, max_epoch=100, 
         dropout_p=None, stop_window=15, patience=10, update=UpdateType.Nesterov,
         learning_rate=0.01, momentum=0.9, output_nonlinearity=NonLinearityType.Softmax,
-        activation=NonLinearityType.Rectify):
+        activation=NonLinearityType.Rectify, batch_size=128):
 
         self.n_hidden_layers = n_hidden_layers
         self.n_hidden_units = n_hidden_units
@@ -331,6 +331,7 @@ class BaseNet(object):
         self.activation = activation
         self.output_nonlinearity = output_nonlinearity
         self.shape = None
+	self.batch_size = batch_size
     
     @property
     @abstractmethod
@@ -357,20 +358,20 @@ class BaseNet(object):
                       update=update,
                       update_learning_rate=theano.shared(float32(self.learning_rate)),
                       on_epoch_finished=[
-                        LinearSchedule('update_learning_rate', start=self.learning_rate,\
-                            stop=0.0001),
                         early_stopping
                       ],
-                      batch_iterator_train=ShuffleBatchIterator(batch_size=128),
+                      batch_iterator_train=ShuffleBatchIterator(batch_size=self.batch_size),
                       eval_size=0.2,
                       max_epochs=self.max_epoch,
                       verbose=1,
                       )
 
-        if self.update not in [UpdateType.Adagrad, UpdateType.Adadelta]:
+        if self.update in [UpdateType.SGD, UpdateType.Momentum, UpdateType.Nesterov]:
             params['update_momentum'] = theano.shared(float32(self.momentum))
             params['on_epoch_finished'].append(LinearSchedule('update_momentum', \
                 start=self.momentum, stop=0.999))
+            params['on_epoch_finished'].append(LinearSchedule('update_learning_rate', start=self.learning_rate,\
+                            stop=0.001))
 
         return NeuralNet(**params)
 
