@@ -51,7 +51,7 @@ class UpdateType(object):
     Nesterov = 3 # SGD with nesterov momentum (prefered over normal momentum)
     Adagrad = 4  # Adagrad
     Rmsprop = 5  # Rmsprop
-    AdaDelta = 6 # Adadelta
+    Adadelta = 6 # Adadelta
     Adam = 7     # Adam
 
 
@@ -62,7 +62,7 @@ UPDATES = {
             UpdateType.Nesterov : nesterov_momentum,
             UpdateType.Adagrad : adagrad,
             UpdateType.Rmsprop : rmsprop,
-            UpdateType.AdaDelta : adadelta,
+            UpdateType.Adadelta : adadelta,
             UpdateType.Adam : adam,
 }
 
@@ -367,7 +367,7 @@ class BaseNet(object):
                       verbose=1,
                       )
 
-        if self.update not in [UpdateType.Adagrad]:
+        if self.update not in [UpdateType.Adagrad, UpdateType.Adadelta]:
             params['update_momentum'] = theano.shared(float32(self.momentum))
             params['on_epoch_finished'].append(LinearSchedule('update_momentum', \
                 start=self.momentum, stop=0.999))
