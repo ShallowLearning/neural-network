@@ -316,8 +316,9 @@ class BaseNet(object):
     
     def __init__(self, n_hidden_layers=3, n_hidden_units=100, max_epoch=100, 
         dropout_p=None, stop_window=15, patience=10, update=UpdateType.Nesterov,
-        learning_rate=0.01, momentum=0.9, output_nonlinearity=NonLinearityType.Softmax,
-        activation=NonLinearityType.Rectify, batch_size=128):
+        learning_rate=0.01, epsilon=1e-6, rho=0.95, momentum=0.9, 
+        output_nonlinearity=NonLinearityType.Softmax, activation=NonLinearityType.Rectify, 
+        batch_size=128):
 
         self.n_hidden_layers = n_hidden_layers
         self.n_hidden_units = n_hidden_units
@@ -327,11 +328,13 @@ class BaseNet(object):
         self.patience = patience
         self.update = update
         self.learning_rate = learning_rate
+        self.epsilon = epsilon
+        self.rho = rho
         self.momentum = momentum
         self.activation = activation
         self.output_nonlinearity = output_nonlinearity
+        self.batch_size = batch_size
         self.shape = None
-	self.batch_size = batch_size
     
     @property
     @abstractmethod
@@ -372,6 +375,11 @@ class BaseNet(object):
                 start=self.momentum, stop=0.999))
             params['on_epoch_finished'].append(LinearSchedule('update_learning_rate', start=self.learning_rate,\
                             stop=0.001))
+        elif self.update == UpdateType.Adagrad:
+            params['update_epsilon'] = self.epsilon
+        elif self.update == UpdateType.Adadelta:
+            params['update_epsilon'] = self.epsilon
+            params['update_rho'] = self.rho
 
         return NeuralNet(**params)
 
@@ -420,3 +428,7 @@ class VanillaNet(BaseNet):
                'output_nonlinearity': NONLINEARITIES[self.output_nonlinearity]
         }
         return self.network_params 
+
+
+class AdadeltaMixin(BaseNet):
+    pass
