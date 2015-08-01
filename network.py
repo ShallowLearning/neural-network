@@ -25,16 +25,16 @@ class Layer(object):
         self.activations = self.activ(np.dot(self.prev_a,self.W) + self.b)
         return self.activations
 
-    def back_prop(self, grad): 
+    def back_prop(self, grad):
         self.delta = grad * derivative[self.activ](self.activations) # (n_sample, n_out)
-        self.delta_W = np.dot(self.prev_a.T, self.delta) # (n_in, n_out)
-        self.delta_b = np.sum(self.delta, axis=0) # (,n_out)
+        self.delta_W = np.dot(self.prev_a.T, self.delta) / self.W.shape[0] # (n_in, n_out)
+        self.delta_b = np.sum(self.delta, axis=0) / self.b.shape[0] # (,n_out)
         del self.prev_a
         del self.activations
         return np.dot(self.delta, self.W.T) # (n_sample, n_in)
 
     def update(self):
-        self._prev_W = self.parameters['momentum']*self._prev_W - self.parameters['learning']*(self.delta_W + self.parameters['regularizer']*self.W)   
+        self._prev_W = self.parameters['momentum']*self._prev_W - self.parameters['learning']*(self.delta_W + self.parameters['regularizer']*self.W)
         self._prev_b = self.parameters['momentum']*self._prev_b - self.parameters['learning']*self.delta_b
         self.W += self._prev_W
         self.b += self._prev_b
@@ -43,7 +43,7 @@ class NeuralNetwork(object):
     def __init__(self, sizes, activ, parameters = None):
         super(NeuralNetwork, self).__init__()
 
-        # build hidden layers 
+        # build hidden layers
         self.layers = [Layer((nin, nout), activ = activ, parameters = parameters) for nin,nout in zip(sizes[:-2], sizes[1:])]
 
         # append a linear output layer (to get probabilites just apply softmax)
